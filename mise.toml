@@ -1,0 +1,8 @@
+[tools]
+go = "1.24.3"
+
+[tasks.doctor]
+description = "Prepares the project for development."
+run = [
+  "pre-commit install --install-hooks --overwrite"
+]
