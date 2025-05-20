@@ -1,87 +1,67 @@
-# yuki - Product Requirements Document (Prototype/MVP)
+# yuki - Product Requirements Document (Prototype/MVP + M4)
 
 ## 1. Introduction
 
-- **Project Idea:** `yuki` is a Command Line Interface (CLI) tool, written in Go, designed to simplify and unify software package management on Windows. It allows users to declaratively manage software installations from a YAML manifest across three prominent package managers: Chocolatey, Scoop, and Winget. It also provides unified commands to update all software managed by these PMs and to list installed software across them.
-- **Problem/Need:** Windows users often leverage multiple package managers (Chocolatey, Scoop, Winget) to access a diverse range of software. Managing these installations and updates through distinct command syntaxes and workflows is inefficient, particularly when setting up new machines or maintaining a consistent software environment based on a declarative configuration. `yuki` aims to solve this by providing a single, consistent interface for these common tasks.
-- **Prototype Goal:** The main goal for this MVP is to create a functional CLI tool that:
-    1. Successfully parses a user-defined YAML manifest specifying packages for Chocolatey, Scoop, and Winget.
-    2. Implements an `apply` command to install software (including specific versions if requested) from the manifest using the designated package managers.
-    3. Implements an `update --all` command to trigger system-wide updates across all three package managers.
-    4. Implements a `list` command to display a consolidated view of packages installed by these managers.
-    5. Handles errors gracefully and provides clear user feedback.
-    6. Serves as a practical tool for the primary user (developer setting up/maintaining their PC) to validate its usability and approach.
+- **Project Idea:** `yuki` is a Command Line Interface (CLI) tool, written in Go, designed to simplify and unify software package management on Windows. It allows users to declaratively manage software installations from a YAML manifest across three prominent package managers: Chocolatey, Scoop, and Winget. `yuki` ensures the system's state matches the manifest by installing specified packages. Optionally, if configured with `prune: true` for Chocolatey and/or Scoop sections in the manifest, it will also remove packages managed by those PMs found on the system but not listed in the manifest. A `--dry-run` mode is available for all `apply` operations.
+- **Problem/Need:** Windows users often leverage multiple package managers (Chocolatey, Scoop, Winget) to access a diverse range of software. Managing these installations, updates, and ensuring a clean, declarative state through distinct command syntaxes and workflows is inefficient and error-prone. `yuki` aims to solve this by providing a single, consistent interface to achieve a desired software environment defined in a manifest.
+- **Prototype Goal:** The main goal for this multi-milestone prototype is to create a functional CLI tool that:
+    1. Successfully parses a user-defined YAML manifest.
+    2. Implements an `apply` command to install software from the manifest using Chocolatey, Scoop, and Winget. This command includes a `--dry-run` mode.
+    3. Enhances the `apply` command with an optional `prune: true` setting within Chocolatey and Scoop manifest sections, enabling the removal of packages installed by these PMs but not specified in their respective manifest sections. Winget does not support pruning via `yuki`.
+    4. Implements an `update --all` command to trigger system-wide updates across all three package managers.
+    5. Implements a `list` command to display a consolidated view of packages installed by these managers.
+    6. Handles errors gracefully and provides clear user feedback, including warnings for unsupported operations (e.g., `prune: true` for Winget).
+    7. Serves as a practical tool for the primary user to validate its usability for declarative state management.
 
 ## 2. Core Features / User Stories
 
-- **Feature 1: Declarative Software Installation via Manifest (`apply` command)**
+- **Feature 1: Declarative Software State Management via Manifest (`apply` command)**
     
-    - Description: Allows the user to install a list of software packages from a YAML manifest file. The manifest specifies the package name, the package manager to use, and an optional version.
-    - User Action(s): User runs `yuki apply <manifest_filepath.yaml>`
+    - Description: Allows the user to define the desired state of software packages from a YAML manifest file. `yuki` will ensure that all packages listed in the manifest are installed (and updated to the specified version if provided). If a Chocolatey or Scoop section in the manifest is marked with `prune: true`, `yuki` will also remove packages managed by that specific PM which are found on the system but not listed in that section of the manifest. Winget sections do not support pruning; a warning is issued if `prune: true` is set for Winget. A `--dry-run` option shows intended changes without execution.
+    - User Action(s):
+        - `yuki apply <manifest_filepath.yaml>`
+        - `yuki apply <manifest_filepath.yaml> --dry-run`
     - Outcome(s):
         - `yuki` parses the YAML manifest.
-        - For each package entry, `yuki` calls the specified package manager (Chocolatey, Scoop, or Winget) to install the package.
-        - If a version is specified in the manifest, `yuki` attempts to install that specific version. Otherwise, the latest stable version is installed.
-        - `yuki` processes package manager groups (e.g., all `chocolatey` packages, then all `scoop` packages) in the order they appear in the manifest file. Packages within each group are also processed in order.
-        - Provides feedback on the success or failure of each installation.
-        - Handles errors as defined (missing PM, package install failure, consecutive failure limit).
-        - Outputs a summary of actions taken.
-    - Command: `yuki apply <manifest_filepath>`
-    - Key Inputs: Path to a valid YAML manifest file.
-    - Expected Output: Console messages indicating progress, errors, and a final summary. Software listed in the manifest is installed.
-- **Feature 2: System-Wide Software Update (`update --all` command)**
+        - For each package entry in the manifest, `yuki` calls the specified package manager (Chocolatey, Scoop, or Winget) to ensure the package is installed (and at the correct version if specified).
+        - **(Pruning Phase - only for Scoop/Chocolatey sections with `prune: true`):**
+            - For each PM section (Scoop, Chocolatey) marked `prune: true`:
+                - `yuki` retrieves a list of all packages currently installed by that specific PM.
+                - Compares this "actual installed" list against the "desired" list for that PM from the manifest.
+                - Identifies packages managed by this PM that are present on the system but not declared in its manifest section.
+                - These identified "extra" packages for this PM are marked for uninstallation.
+            - If a Winget section has `prune: true`, a warning is issued, and no pruning analysis is done for Winget packages.
+        - **Execution (if not `--dry-run`):**
+            - Installs/updates packages as per manifest.
+            - Uninstalls packages marked for pruning (for Scoop/Chocolatey with `prune: true`).
+        - **Dry Run (`--dry-run`):**
+            - `yuki` reports all packages that _would be_ installed, updated to a specific version, or uninstalled (due to pruning), without making any changes.
+        - Handles errors (missing PM, package install/uninstall failure, consecutive install failures).
+        - Outputs a summary of actions taken or proposed (in dry run).
+    - Command: `yuki apply <manifest_filepath> [--dry-run]`
+    - Key Inputs: Path to a YAML manifest. Optional `--dry-run` flag.
+    - Expected Output: Console messages indicating progress/proposed actions, errors, warnings (e.g., Winget prune attempt), and a final summary. If not dry run, system state for Scoop/Chocolatey (if `prune: true`) and Winget matches the manifest installs.
+- **Feature 2: System-Wide Software Update (`update --all` command)** (Same as previous PRD)
     
-    - Description: Allows the user to update all packages managed by Chocolatey, Scoop, and Winget on their system using a single command. This command operates independently of any manifest file.
-    - User Action(s): User runs `yuki update -a` or `yuki update --all`.
-    - Outcome(s):
-        - `yuki` executes the native "update all" commands for Chocolatey (e.g., `choco upgrade all -y`).
-        - `yuki` executes the native "update all" commands for Scoop (e.g., `scoop update *`).
-        - `yuki` executes the native "update all" commands for Winget (e.g., `winget upgrade --all --accept-package-agreements --accept-source-agreements`).
-        - Displays output/summary from these operations.
-    - Command: `yuki update -a` (alias `--all`)
-    - Key Inputs: None (beyond the command itself).
-    - Expected Output: Console messages indicating which package managers are being updated and their respective outputs or a summary.
-- **Feature 3: Consolidated Listing of Installed Packages (`list` command)**
+- **Feature 3: Consolidated Listing of Installed Packages (`list` command)** (Same as previous PRD)
     
-    - Description: Allows the user to see a consolidated list of software packages installed across Chocolatey, Scoop, and Winget. This command operates independently of any manifest file.
-    - User Action(s): User runs `yuki list`.
-    - Outcome(s):
-        - `yuki` executes the native "list installed" commands for Chocolatey, Scoop, and Winget.
-        - Parses the output from each package manager.
-        - Displays a formatted list, clearly sectioned by package manager (Chocolatey, Scoop, Winget).
-        - For each package, shows: Package Name, Installed Version, Source/Bucket (if applicable, e.g., Scoop's bucket), and Managing PM.
-    - Command: `yuki list`
-    - Key Inputs: None.
-    - Expected Output: Formatted console output listing installed packages.
 
 ## 3. Technical Specifications
 
-- **Primary Language(s):** Go (latest stable version, e.g., 1.22+ as of May 2025)
-- **Key Frameworks/Libraries:**
-    - CLI Framework: `urfave/cli` (v2 or latest stable)
-    - YAML parsing: `gopkg.in/yaml.v3`
-    - OS command execution: standard `os/exec`
-- **Database (if any):** None for MVP.
-- **Key APIs/Integrations (if any):** Direct CLI interaction with:
-    - `choco.exe` (Chocolatey)
-    - `scoop.exe` (Scoop)
-    - `winget.exe` (Winget)
-- **Deployment Target (if applicable for prototype):** Local executable for Windows (`yuki.exe`).
+- **Primary Language(s):** Go
+- **Key Frameworks/Libraries:** `urfave/cli`, `gopkg.in/yaml.v3`, `os/exec`.
+- **Key APIs/Integrations:** CLI interaction with `choco.exe`, `scoop.exe`, `winget.exe` (for install, list, uninstall, upgrade all/update *).
 - **High-Level Architectural Approach:**
-    - Modular CLI application built with `urfave/cli`, with commands for `apply`, `update`, and `list`.
-    - Separate Go packages/modules for interacting with each underlying package manager (e.g., `internal/chocolatey`, `internal/scoop`, `internal/winget`). These modules will be responsible for:
-        - Constructing the correct CLI arguments for the specific package manager.
-        - Executing the command using `os/exec`.
-        - Parsing the output (stdout, stderr) from the package manager CLIs into structured data where necessary (especially for the `list` command).
-    - A core orchestration layer for the `apply` command to manage manifest parsing, package processing order, and error handling logic (including consecutive failure tracking).
-    - YAML parsing module for the manifest file.
+    - ... (similar to previous PRD)
+    - `apply` command logic to include `--dry-run` mode.
+    - Logic to check `prune` flag per PM section in the manifest.
+    - Conditional execution of pruning for Scoop/Chocolatey; warning for Winget if `prune: true`.
 - **Critical Technical Decisions/Constraints:**
-    - Must be able to locate and execute the `.exe` files for Chocolatey, Scoop, and Winget. Assumes they are in the system's PATH.
-    - Output parsing from third-party CLIs can be fragile. Initial implementation should target known output formats of current stable versions of these managers.
-    - Error handling needs to distinguish between `yuki` application errors, underlying PM not found, and errors reported _from_ the underlying PMs.
-    - For the `apply` command, maintain state for consecutive failures per package manager within a single run.
+    - `--dry-run` flag for `apply` is essential for user safety and understanding, given no interactive confirmation for pruning.
+    - Pruning logic for `apply` must differentiate behavior for Scoop/Chocolatey vs. Winget.
+    - Default for `prune` field if omitted in a PM section is `false`.
 
-## 4. Project Structure (Optional)
+## 4. Project Structure
 
 A typical Go CLI project structure using `urfave/cli` would be suitable.
 
@@ -119,27 +99,33 @@ A typical Go CLI project structure using `urfave/cli` would be suitable.
 
 ## 5. File Descriptions (If applicable)
 
-- **`<user_manifest>.yaml`** (User-provided, e.g., `my_setup.yaml`):
-    - **Purpose:** Defines the desired state of software to be installed by the `yuki apply` command.
+- **`<user_manifest>.yaml`**:
+    - **Purpose:** Defines desired software state. Controls pruning per PM group (Scoop/Chocolatey only).
     - **Format:** YAML.
     - **Key Contents/Structure:**
 
     ```yaml
-    # Example: my_setup.yaml
 chocolatey:
-  - name: "git"
-    version: "2.45.1" # Optional: specific version
-  - name: "nodejs-lts" # Installs latest LTS
+  prune: true # If true, remove unmanaged choco packages. Defaults to false if omitted.
+  packages:
+    - name: "git"
+      version: "2.45.1"
+    - name: "nodejs-lts"
 
 scoop:
-  - name: "extras/7zip" # Bucket prefix included in name if not in main
-  - name: "sumatrapdf"
-    version: "3.5.2" # Optional
+  prune: true # If true, remove unmanaged scoop packages. Defaults to false if omitted.
+  packages:
+    - name: "extras/7zip"
+    - name: "sumatrapdf"
+      version: "3.5.2"
 
 winget:
-  - name: "Microsoft.PowerToys"
-  - name: "VideoLAN.VLC"
-    version: "3.0.20" # Optional
+  # prune: true # If set, yuki issues a warning; no pruning for Winget.
+  # Defaults to false if omitted.
+  packages:
+    - name: "Microsoft.PowerToys"
+    - name: "VideoLAN.VLC"
+      version: "3.0.20"
     ```
     
 ## 6. Future Considerations / Out of Scope (for this prototype)
@@ -153,6 +139,8 @@ winget:
     - Managing packages not explicitly listed for `apply` (e.g. no `yuki remove-not-in-manifest` type of command).
     - Interactive prompts during `apply` (beyond a simple yes/no for PM installation if that were in scope).
     - Advanced output parsing for all edge cases of PM outputs; MVP will focus on common/standard formats.
+    - Pruning being the default behavior (it requires `prune: true` per PM section).
+    - Interactive confirmation for pruning (replaced by `--dry-run` and explicit `prune: true` flags).
 - **Potential Future Enhancements (Post-Prototype):**
     - Implement `search` and `uninstall` commands.
     - Support for JSON manifest format.
@@ -162,6 +150,9 @@ winget:
     - Support for an `args` field in the manifest for more granular control over PM installations.
     - Parallel execution of package installations (within constraints of each PM) or PM operations (e.g., run all list commands concurrently).
     - Plugin system to support other package sources or custom script execution.
+    - Standalone `yuki uninstall <package> [--manager <pm>]` command.
+    - Global `prune: true` option in manifest with per-PM overrides.
+    - `--force` flag to bypass certain safety checks (use with caution).
 
 ## 7. Project-Specific Coding Rules (Optional)
 
