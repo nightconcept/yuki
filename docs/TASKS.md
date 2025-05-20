@@ -62,11 +62,11 @@
 
 **Goal:** Add install support for Chocolatey/Winget to `apply`. Implement `list` command. Crucially, implement `--dry-run` for the `apply` command's install logic.
 
-- [ ] **Task 2.1:** Implement **Chocolatey** PM interaction for `InstallPackage`
+- [x] **Task 2.1:** Implement **Chocolatey** PM interaction for `InstallPackage`
     
-    - [ ] In `internal/pm/chocolatey/chocolatey.go` (create file), add `InstallPackage`.
-    - [ ] Construct/execute `choco install <pkg> [--version <v>]`. "Missing PM" detection.
-    - [ ] Verification: Unit tests. Integrate into `apply`. Consecutive failure logic for Choco installs.
+    - [x] In `internal/pm/chocolatey/chocolatey.go` (create file), add `InstallPackage`.
+    - [x] Construct/execute `choco install <pkg> [--version <v>]`. "Missing PM" detection.
+    - [x] Verification: Unit tests. Integrate into `apply`. Consecutive failure logic for Choco installs.
 - [ ] **Task 2.2:** Implement **Winget** PM interaction for `InstallPackage`
     
     - [ ] In `internal/pm/winget/winget.go` (create file), add `InstallPackage`.
@@ -124,77 +124,4 @@
 - [ ] **Task 3.5:** Implement **Winget** `UpdateAllPackages` method
     
     - [ ] In `winget.go`, implement (runs `winget upgrade --all --accept-...`). Capture/display.
-    - [ ] Verification: `update -a` triggers `winget upgrade --all`.
-- [ ] **Task 3.6:** Add basic logging/verbose output option (`--verbose` flag)
-    
-    - [ ] Implement global flag and conditional detailed logging.
-    - [ ] Verification: Provides more operational output.
-- [ ] **Task 3.7:** Create `manifest.example.yaml` showing `prune` usage
-    
-    - [ ] Well-commented example file, including `prune: true/false` and comments about Winget.
-    - [ ] Verification: Clear and usable.
-- [ ] **Task 3.8:** Write/Update `README.md`
-    
-    - [ ] Include `prune` feature description, `--dry-run` usage.
-    - [ ] Verification: Comprehensive and clear.
-
-## Milestone 4: Implement Pruning (Uninstall Unmanaged based on `prune` flag) in `apply` Command
-
-**Goal:** Enhance `apply` to identify and remove packages for Scoop/Chocolatey if their manifest section has `prune: true`. Implement Winget warning for `prune: true`. Ensure `--dry-run` shows pruning actions.
-
-- [ ] **Task 4.1:** Design `apply` command flow for conditional pruning phase
-    
-    - [ ] Define steps: post-install/update phase, check `prune` flag for Choco/Scoop sections. If `prune: true` for Winget, prepare warning.
-    - [ ] Verification: Flowchart or sequence diagram updated.
-- [ ] **Task 4.2:** Implement `UninstallPackage` method for **Scoop**
-    
-    - [ ] In `scoop.go`, add `UninstallPackage` (runs `scoop uninstall <pkg>`). Error handling.
-    - [ ] Verification: Unit tests. Manually test uninstalling.
-- [ ] **Task 4.3:** Implement `UninstallPackage` method for **Chocolatey**
-    
-    - [ ] In `chocolatey.go`, add `UninstallPackage` (runs `choco uninstall <pkg> -y`). Error handling.
-    - [ ] Verification: Unit tests. Manually test uninstalling.
-- [ ] **Task 4.4:** Implement (stubbed/logging) `UninstallPackage` for **Winget**
-    
-    - [ ] In `winget.go`, add `UninstallPackage` but it should effectively be a no-op for pruning, or only log if called inappropriately for this feature. The main pruning logic will skip calling this for Winget.
-    - [ ] Verification: No actual uninstall occurs.
-- [ ] **Task 4.5:** Implement state comparison logic for pruning
-    
-    - [ ] In `internal/app/state.go` (create file) or similar: function to take manifest packages (for a specific PM) and list of all installed packages _by that PM_, return list of packages to prune for _that PM_.
-    - [ ] Verification: Unit tests with various manifest/installed scenarios for a single PM.
-- [ ] **Task 4.6:** Integrate pruning logic into `apply` command (Scoop & Chocolatey)
-    
-    - [ ] After install/update phase, for each Choco/Scoop section:
-        - If `prune: true` is set in its manifest section:
-            - Call `ListInstalledPackages` for that PM.
-            - Call state comparison logic to get packages to prune for that PM.
-            - If not `--dry-run`, call respective PM `UninstallPackage` method for each.
-            - If `--dry-run`, log packages that _would be_ uninstalled.
-    - [ ] Verification: `apply` with `prune: true` for Scoop/Choco correctly identifies and (if not dry run) attempts to uninstall packages. Dry run shows correct proposed uninstalls.
-- [ ] **Task 4.7:** Implement Winget `prune: true` warning
-    
-    - [ ] In `apply` command, if a Winget section has `prune: true` in the manifest, issue a clear warning message that pruning is not supported for Winget and no action will be taken.
-    - [ ] Ensure no pruning logic is triggered for Winget packages.
-    - [ ] Verification: Warning is displayed when `winget: { prune: true, ... }` is in manifest. No Winget packages are marked for pruning.
-- [ ] **Task 4.8:** Refine error handling and summary for `apply` (with pruning)
-    
-    - [ ] Ensure uninstall errors are caught and reported.
-    - [ ] Update final summary to include packages successfully/unsuccessfully uninstalled (or proposed for uninstall in dry run).
-    - [ ] Verification: `apply` handles uninstall errors; summary is comprehensive for all operations.
-- [ ] **Task 4.9:** Thorough end-to-end testing of `apply` with pruning and `--dry-run`
-    
-    - [ ] Test with various manifests: `prune: true/false` for Scoop/Choco, `prune: true` for Winget.
-    - [ ] Test `--dry-run` with all pruning scenarios.
-    - [ ] Test actual pruning runs.
-    - [ ] Verification: `apply` command behaves as a declarative state manager correctly and safely according to `prune` flags and `--dry-run`.
-
-## Additional Tasks / Backlog (Post-MVP M1-M4)
-
-- [ ] Implement standalone `search` command.
-- [ ] Implement standalone `uninstall` command (e.g., `yuki uninstall <packagename> --manager <pm>`).
-- [ ] Add support for JSON manifest input.
-- [ ] Feature: Offer to install missing PMs during `apply`.
-- [ ] `--force` flag for `apply` to bypass certain safety checks (e.g., if we re-introduce any other than the `prune` logic).
-- [ ] Configuration file for `yuki` itself.
-- [ ] Add `args` field support to manifest for custom PM arguments.
-- [ ] Investigate parallel execution for PM operations.
+    - [ ] Verification: `update -a`
