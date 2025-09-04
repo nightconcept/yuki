@@ -2,16 +2,17 @@
 
 ## 1. Introduction
 
-- **Project Idea:** `yuki` is a Command Line Interface (CLI) tool, written in Go, designed to simplify and unify software package management on Windows. It allows users to declaratively manage software installations from a YAML manifest across three prominent package managers: Chocolatey, Scoop, and Winget. `yuki` ensures the system's state matches the manifest by installing specified packages. Optionally, if configured with `prune: true` for Chocolatey and/or Scoop sections in the manifest, it will also remove packages managed by those PMs found on the system but not listed in the manifest. A `--dry-run` mode is available for all `apply` operations.
-- **Problem/Need:** Windows users often leverage multiple package managers (Chocolatey, Scoop, Winget) to access a diverse range of software. Managing these installations, updates, and ensuring a clean, declarative state through distinct command syntaxes and workflows is inefficient and error-prone. `yuki` aims to solve this by providing a single, consistent interface to achieve a desired software environment defined in a manifest.
+- **Project Idea:** `yuki` is a Command Line Interface (CLI) tool, written in Rust, designed as a declarative system configuration manager for Windows, inspired by Nix and home-manager. It allows users to declaratively manage their entire Windows environment from a YAML manifest, including software installations across three prominent package managers (Chocolatey, Scoop, and Winget) and system configuration files. `yuki` ensures the system's state matches the manifest by installing specified packages and managing configuration files. Optionally, if configured with `prune: true` for package manager sections, it will also remove packages not listed in the manifest. A `--dry-run` mode is available for all operations.
+- **Problem/Need:** Windows users often struggle with reproducible system configurations. Managing software installations across multiple package managers, maintaining configuration files, and ensuring a clean, declarative state is inefficient and error-prone. Unlike Unix-like systems with tools like Nix or Ansible, Windows lacks a comprehensive declarative configuration management solution. `yuki` aims to fill this gap by providing a single, consistent interface to achieve a desired system state defined in a manifest.
 - **Prototype Goal:** The main goal for this multi-milestone prototype is to create a functional CLI tool that:
-    1. Successfully parses a user-defined YAML manifest.
+    1. Successfully parses a user-defined YAML manifest describing the desired system state.
     2. Implements an `apply` command to install software from the manifest using Chocolatey, Scoop, and Winget. This command includes a `--dry-run` mode.
-    3. Enhances the `apply` command with an optional `prune: true` setting within Chocolatey and Scoop manifest sections, enabling the removal of packages installed by these PMs but not specified in their respective manifest sections. Winget does not support pruning via `yuki`.
-    4. Implements an `update --all` command to trigger system-wide updates across all three package managers.
-    5. Implements a `list` command to display a consolidated view of packages installed by these managers.
-    6. Handles errors gracefully and provides clear user feedback, including warnings for unsupported operations (e.g., `prune: true` for Winget).
-    7. Serves as a practical tool for the primary user to validate its usability for declarative state management.
+    3. Enhances the `apply` command with an optional `prune: true` setting within package manager sections, enabling the removal of packages not specified in their respective manifest sections.
+    4. Implements configuration file management to deploy and maintain system configuration files.
+    5. Implements an `update --all` command to trigger system-wide updates across all package managers.
+    6. Implements a `list` command to display a consolidated view of packages and managed configurations.
+    7. Handles errors gracefully and provides clear user feedback with detailed logging.
+    8. Serves as a foundation for a comprehensive Windows system configuration management tool.
 
 ## 2. Core Features / User Stories
 
@@ -47,88 +48,137 @@
 
 ## 3. Technical Specifications
 
-- **Primary Language(s):** Go
-- **Key Frameworks/Libraries:** `urfave/cli`, `gopkg.in/yaml.v3`, `os/exec`.
-- **Key APIs/Integrations:** CLI interaction with `choco.exe`, `scoop.exe`, `winget.exe` (for install, list, uninstall, upgrade all/update *).
+- **Primary Language:** Rust (edition 2021)
+- **Key Dependencies:** `clap` (CLI framework), `serde` + `serde_yaml` (YAML parsing), `tokio` (async runtime), `anyhow` + `thiserror` (error handling), `tracing` (structured logging), `tempfile` (temporary file management)
+- **Key APIs/Integrations:** 
+  - Process execution with `choco.exe`, `scoop.exe`, `winget.exe`
+  - File system operations for configuration management
+  - Windows-specific APIs through `windows-rs` crate if needed
 - **High-Level Architectural Approach:**
-  - ... (similar to previous PRD)
-  - `apply` command logic to include `--dry-run` mode.
-  - Logic to check `prune` flag per PM section in the manifest.
-  - Conditional execution of pruning for Scoop/Chocolatey; warning for Winget if `prune: true`.
+  - Modular design with separate crates/modules for each package manager
+  - Async-first design for concurrent operations
+  - Strong type safety with serde for configuration parsing
+  - Structured logging throughout the application
+  - `apply` command logic with `--dry-run` mode support
+  - Configuration file templating and deployment system
+  - State tracking for idempotent operations
 - **Critical Technical Decisions/Constraints:**
-  - `--dry-run` flag for `apply` is essential for user safety and understanding, given no interactive confirmation for pruning.
-  - Pruning logic for `apply` must differentiate behavior for Scoop/Chocolatey vs. Winget.
-  - Default for `prune` field if omitted in a PM section is `false`.
+  - `--dry-run` flag is essential for user safety before making system changes
+  - Structured configuration with strong typing to prevent runtime errors
+  - Async operations to handle multiple package managers concurrently
+  - Comprehensive error handling with context for debugging
+  - Configuration file management with backup and rollback capabilities
 
 ## 4. Project Structure
 
-A typical Go CLI project structure using `urfave/cli` would be suitable.
+A modern Rust CLI project structure using workspace organization:
 
+```
 /yuki
-  /cmd
-    /yuki           # Main application package
-      main.go
-  /internal
-    /app            # Core application logic, command handlers
-      apply.go
-      update.go
-      list.go
-      manifest.go   # Manifest parsing and structure
-    /pm             # Package manager interaction layer
-      /chocolatey
-        chocolatey.go
-      /scoop
-        scoop.go
-      /winget
-        winget.go
-      common.go     # Interfaces or shared utilities for PM interaction
-    /utils          # General utility functions
-  go.mod
-  go.sum
-  README.md
+  Cargo.toml              # Workspace root
+  /crates
+    /yuki-cli             # Main CLI binary crate
+      Cargo.toml
+      src/
+        main.rs
+        cli.rs            # CLI command definitions
+        config.rs         # Configuration loading
+    /yuki-core            # Core library crate
+      Cargo.toml
+      src/
+        lib.rs
+        manifest.rs       # Manifest parsing and types
+        apply.rs          # Apply command logic
+        list.rs           # List command logic  
+        update.rs         # Update command logic
+        state.rs          # State management
+        error.rs          # Error types
+    /yuki-pm              # Package manager abstraction crate
+      Cargo.toml
+      src/
+        lib.rs
+        traits.rs         # Common PM traits
+        chocolatey.rs     # Chocolatey implementation
+        scoop.rs          # Scoop implementation
+        winget.rs         # Winget implementation
+    /yuki-config          # Configuration file management crate
+      Cargo.toml
+      src/
+        lib.rs
+        deploy.rs         # File deployment logic
+        template.rs       # Template processing
+        backup.rs         # Backup/restore functionality
   /docs
     PRD.md
     TASKS.md
-  manifest.example.yaml
+  /examples
+    basic-manifest.yaml
+    full-manifest.yaml
+  /tests                  # Integration tests
+    common/
+    test_apply.rs
+    test_config.rs
+```
 
-- `cmd/yuki/main.go`: Entry point, CLI definition using `urfave/cli`.
-- `internal/app/`: Contains the core logic for each command (`apply`, `update`, `list`) and manifest handling.
-- `internal/pm/`: Contains specific logic for interacting with each package manager (building commands, executing, parsing output).
-- `manifest.example.yaml`: An example manifest file.
+- `crates/yuki-cli/`: Main binary with CLI interface using `clap`
+- `crates/yuki-core/`: Core application logic and command implementations
+- `crates/yuki-pm/`: Package manager abstraction layer with async traits
+- `crates/yuki-config/`: Configuration file management system
+- `examples/`: Example manifest files demonstrating features
 
 ## 5. File Descriptions (If applicable)
 
 - **`<user_manifest>.yaml`**:
-  - **Purpose:** Defines desired software state. Controls pruning per PM group (Scoop/Chocolatey only).
-  - **Format:** YAML.
+  - **Purpose:** Defines desired system state including software packages and configuration files. Inspired by Nix/home-manager declarative approach.
+  - **Format:** YAML with strong typing validation.
   - **Key Contents/Structure:**
 
     ```yaml
+# System configuration manifest
+system:
+  name: "development-workstation"
+  description: "My development environment"
 
-chocolatey:
-  prune: true # If true, remove unmanaged choco packages. Defaults to false if omitted.
-  packages:
-    - name: "git"
-      version: "2.45.1"
-    - name: "nodejs-lts"
+# Package manager configurations
+packages:
+  chocolatey:
+    prune: true # Remove unmanaged packages
+    packages:
+      - name: "git"
+        version: "2.45.1"
+      - name: "nodejs-lts"
 
-scoop:
-  prune: true # If true, remove unmanaged scoop packages. Defaults to false if omitted.
-  packages:
-    - name: "extras/7zip"
-    - name: "sumatrapdf"
-      version: "3.5.2"
+  scoop:
+    prune: true
+    buckets:
+      - "extras"
+      - "main"
+    packages:
+      - name: "7zip"
+        bucket: "main"
+      - name: "sumatrapdf"
+        version: "3.5.2"
 
-winget:
+  winget:
+    prune: false # Winget pruning not recommended
+    packages:
+      - name: "Microsoft.PowerToys"
+      - name: "VideoLAN.VLC"
+        version: "3.0.20"
 
-# prune: true # If set, yuki issues a warning; no pruning for Winget
-
-# Defaults to false if omitted
-
-  packages:
-    - name: "Microsoft.PowerToys"
-    - name: "VideoLAN.VLC"
-      version: "3.0.20"
+# Configuration file management (future feature)
+configs:
+  - source: "./configs/gitconfig"
+    target: "~/.gitconfig"
+    template: false
+  - source: "./configs/vscode-settings.json"
+    target: "%APPDATA%/Code/User/settings.json"
+    backup: true
+  - source: "./configs/powershell-profile.ps1"
+    target: "$PROFILE"
+    template: true
+    variables:
+      username: "{{ env.USERNAME }}"
     ```
 
 ## 6. Future Considerations / Out of Scope (for this prototype)
@@ -157,19 +207,25 @@ winget:
   - Global `prune: true` option in manifest with per-PM overrides.
   - `--force` flag to bypass certain safety checks (use with caution).
 
-## 7. Project-Specific Coding Rules (Optional)
+## 7. Project-Specific Coding Rules
 
-- **Language Version:** Go 1.22+ (or latest stable at time of development)
-- **Formatting:** `gofmt` (or `goimports`) must be used.
-- **Linting:** `golangci-lint` with a sensible default configuration (e.g., `golangci-lint run`).
+- **Rust Edition:** 2021 (or latest stable)
+- **Formatting:** `rustfmt` with default configuration
+- **Linting:** `clippy` with pedantic lints enabled
 - **Key Principles:**
-  - Clarity and Readability: Code should be easy to understand and maintain.
-  - Modularity: Keep concerns separated (CLI definition, app logic, PM interaction).
-  - Explicit Error Handling: Handle errors explicitly; avoid panics in library/app code. Use `errors.Is`, `errors.As` where appropriate.
-  - Testability: Write code that is testable. Unit tests for core logic (manifest parsing, command construction, output parsing for `list`). Mocking `os/exec` or PM interaction interfaces will be essential.
-- **Naming Conventions:** Follow standard Go naming conventions (e.g., `camelCase` for local variables and internal functions, `PascalCase` for exported identifiers).
-- **Testing (for prototype):**
-  - Unit tests for manifest parsing.
-  - Unit tests for the logic of constructing commands for each PM.
-  - Unit tests for parsing output from `list` commands (using example/canned outputs).
-  - Basic integration tests for CLI command invocation (e.g., ensuring commands run, help is displayed). Testing actual package installations with all PMs can be complex for automated CI but should be done manually during development.
+  - **Type Safety**: Leverage Rust's type system for correctness; use strong types over primitives
+  - **Error Handling**: Use `anyhow` for application errors, `thiserror` for library errors; avoid panics in library code
+  - **Async First**: Design for concurrency; use `tokio` for async operations
+  - **Modularity**: Clean separation of concerns with well-defined interfaces
+  - **Documentation**: Comprehensive rustdoc comments for public APIs
+  - **Performance**: Efficient resource usage; avoid unnecessary allocations
+- **Naming Conventions:** Follow Rust standards (`snake_case` for functions/variables, `PascalCase` for types)
+- **Dependencies:** Prefer well-maintained crates; minimize dependency count; pin versions for stability
+- **Testing Strategy:**
+  - Unit tests for core logic (manifest parsing, command construction)
+  - Integration tests for CLI commands using temporary directories
+  - Property-based testing for configuration validation
+  - Mock package manager interactions for deterministic testing
+  - Separate test fixtures and utilities in `tests/common/`
+- **Error Context:** Always provide meaningful error messages with context for debugging
+- **Logging:** Structured logging with `tracing`; different log levels for development vs production

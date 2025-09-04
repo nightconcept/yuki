@@ -1,127 +1,193 @@
 # yuki - Task List
 
-## Milestone 1: Core CLI Structure, Manifest Parsing, and `apply` Command (Scoop only)
+## Milestone 1: Core Rust CLI Structure, Manifest Parsing, and `apply` Command (Scoop only)
 
-**Goal:** Establish the basic `yuki` CLI application, implement manifest parsing, and achieve a functional `apply` command that can install packages from a manifest using only **Scoop** as the first supported package manager. This will validate the core workflow and error handling.
+**Goal:** Establish the basic `yuki` Rust CLI application with workspace structure, implement strongly-typed manifest parsing with serde, and achieve a functional `apply` command that can install packages using **Scoop** as the first supported package manager. This validates the core async workflow and error handling.
 
-- [x] **Task 1.1:** Setup Go project structure for `yuki`
+- [ ] **Task 1.1:** Setup Rust workspace project structure for `yuki`
 
-  - [x] Initialize Go module (`go mod init github.com/your-username/yuki`)
-  - [x] Create initial directory structure (`/cmd/yuki`, `/internal/app`, `/internal/pm/scoop`, `/internal/utils`, `/docs`)
-  - [x] Add `urfave/cli` and `go-yaml/yaml` dependencies.
-  - [x] Verification: Project compiles. Basic `yuki --version` command works.
+  - [ ] Initialize Cargo workspace (`cargo init --name yuki`)
+  - [ ] Create workspace structure (`/crates/yuki-cli`, `/crates/yuki-core`, `/crates/yuki-pm`, `/docs`)
+  - [ ] Configure workspace `Cargo.toml` with member crates
+  - [ ] Add core dependencies: `clap`, `serde`, `serde_yaml`, `tokio`, `anyhow`, `tracing`
+  - [ ] Verification: Project compiles. Basic `yuki --version` command works.
 
-- [x] **Task 1.2:** Implement YAML manifest parsing
+- [ ] **Task 1.2:** Implement strongly-typed YAML manifest parsing with serde
 
-  - [x] Define Go structs for the manifest structure (top-level PM keys, list of package objects with `name` and optional `version`).
-  - [x] Implement function to read and unmarshal the YAML manifest file (e.g., `manifest.yaml`).
-  - [x] Add error handling for file not found or malformed YAML.
-  - [x] Verification: Unit tests pass for parsing valid and invalid manifest examples. `yuki apply <manifest>` can successfully load and print parsed package details (dry run).
+  - [ ] Define Rust structs for manifest structure in `yuki-core/src/manifest.rs`
+  - [ ] Implement serde derives for deserialization with validation
+  - [ ] Create manifest loading function with comprehensive error handling
+  - [ ] Add validation logic for manifest constraints and dependencies
+  - [ ] Verification: Unit tests pass for valid/invalid manifests. `yuki apply <manifest> --dry-run` loads and displays parsed data.
 
-- [x] **Task 1.3:** Implement core `apply` command logic (dispatcher)
+- [ ] **Task 1.3:** Implement core async `apply` command logic in yuki-core
 
-  - [x] Define the `apply` command structure in `urfave/cli`.
-  - [x] Implement logic to iterate through PM groups in manifest file order.
-  - [x] Implement logic to iterate through packages within each PM group in manifest order.
-  - [x] Verification: `yuki apply <manifest>` with a dummy manifest correctly logs the packages it would process in the correct order.
+  - [ ] Define `apply` command structure using `clap` in `yuki-cli`
+  - [ ] Implement async dispatcher logic in `yuki-core/src/apply.rs`
+  - [ ] Add structured logging with `tracing` for operation tracking  
+  - [ ] Implement `--dry-run` mode from the start
+  - [ ] Verification: `yuki apply <manifest> --dry-run` shows planned operations in correct order.
 
-- [x] **Task 1.4:** Implement **Scoop** package manager interaction for `install`
+- [ ] **Task 1.4:** Implement async **Scoop** package manager trait and implementation
 
-  - [x] Create `internal/pm/scoop/scoop.go`.
-  - [x] Implement function to construct `scoop install <package_name>[@<version>]` command string.
-  - [x] Implement function to execute the `scoop` command using `os/exec`.
-  - [x] Capture stdout/stderr from `scoop`.
-  - [x] Basic error detection (e.g., `scoop.exe` not found, non-zero exit code).
-  - [x] Verification: Unit tests for command construction. Manually test installing a Scoop package using this module's function.
+  - [ ] Define async `PackageManager` trait in `yuki-pm/src/traits.rs`
+  - [ ] Implement `ScoopManager` struct in `yuki-pm/src/scoop.rs`
+  - [ ] Add async command execution with `tokio::process::Command`
+  - [ ] Implement package availability detection and version handling
+  - [ ] Add comprehensive error handling with context
+  - [ ] Verification: Unit tests for command construction and execution. Mock tests for different scenarios.
 
-- [x] **Task 1.5:** Integrate **Scoop** installation into `apply` command
+- [ ] **Task 1.5:** Integrate **Scoop** installation into async `apply` command
 
-  - [x] In `apply` command logic, if `scoop` group is processed, call the Scoop interaction module for each package.
-  - [x] Implement basic error reporting for `apply` (package success/failure).
-  - [x] Verification: `yuki apply <manifest_with_scoop_pkgs>` successfully installs specified Scoop packages. Errors are reported.
+  - [ ] Integrate Scoop manager into `apply` command logic
+  - [ ] Implement async package installation with progress tracking
+  - [ ] Add structured error reporting with `tracing`
+  - [ ] Handle concurrent operations safely
+  - [ ] Verification: `yuki apply <manifest_with_scoop_pkgs>` successfully installs packages with detailed logging.
 
-- [x] **Task 1.6:** Implement "Missing PM" detection for **Scoop** in `apply`
+- [ ] **Task 1.6:** Implement package manager availability detection
 
-  - [x] Before attempting `scoop` commands, check if `scoop.exe` is in PATH or executable.
-  - [x] If missing, report clearly and skip Scoop packages as per PRD.
-  - [x] Verification: Test `apply` with Scoop packages when `scoop.exe` is not accessible; ensure correct reporting and skipping.
+  - [ ] Add async PM detection before attempting operations
+  - [ ] Create informative error messages for missing PMs
+  - [ ] Implement graceful degradation when PM is unavailable
+  - [ ] Verification: Test with missing `scoop.exe`; ensure proper error handling and user guidance.
 
-- [x] **Task 1.7:** Implement consecutive failure limit for **Scoop** in `apply`
+- [ ] **Task 1.7:** Implement failure tracking and circuit breaker pattern
 
-  - [x] Add logic to `apply` command to track consecutive installation failures for Scoop packages.
-  - [x] If 3 consecutive failures occur, skip remaining Scoop packages for that run and report.
-  - [x] Verification: Test with a manifest causing 3+ consecutive Scoop failures; ensure subsequent Scoop packages are skipped.
+  - [ ] Add failure tracking per package manager
+  - [ ] Implement configurable failure threshold (default: 3 consecutive failures)
+  - [ ] Add circuit breaker to prevent cascade failures
+  - [ ] Provide clear feedback on failure patterns
+  - [ ] Verification: Test with failing packages; ensure circuit breaker activates appropriately.
 
-- [x] **Task 1.8:** Basic end-of-`apply` summary
+- [ ] **Task 1.8:** Implement comprehensive operation summary and reporting
 
-  - [x] Collect results (success, failure, skip reason) for each attempted package installation.
-  - [x] Print a simple summary table/list at the end of the `apply` command.
-  - [x] Verification: Summary accurately reflects the outcome of an `apply` run with mixed results (for Scoop packages).
+  - [ ] Design structured result types for all operations
+  - [ ] Create detailed summary with success/failure/skip statistics
+  - [ ] Add colorized output for better UX (when supported)
+  - [ ] Include timing information and performance metrics
+  - [ ] Verification: Summary provides actionable feedback for all operation outcomes.
 
-## Milestone 2: Extend `apply` (Installs for Choco/Winget), Implement `list` & `--dry-run` for `apply`
+## Milestone 2: Extend `apply` (Chocolatey/Winget), Implement `list` Command, and Enhanced Dry-Run
 
-**Goal:** Add install support for Chocolatey/Winget to `apply`. Implement `list` command. Crucially, implement `--dry-run` for the `apply` command's install logic.
+**Goal:** Add async install support for Chocolatey/Winget to `apply`. Implement comprehensive `list` command with parallel PM queries. Enhance `--dry-run` mode with detailed planning output.
 
-- [x] **Task 2.1:** Implement **Chocolatey** PM interaction for `InstallPackage`
+- [ ] **Task 2.1:** Implement async **Chocolatey** package manager
 
-  - [x] In `internal/pm/chocolatey/chocolatey.go` (create file), add `InstallPackage`.
-  - [x] Construct/execute `choco install <pkg> [--version <v>]`. "Missing PM" detection.
-  - [x] Verification: Unit tests. Integrate into `apply`. Consecutive failure logic for Choco installs.
-- [ ] **Task 2.2:** Implement **Winget** PM interaction for `InstallPackage`
+  - [ ] Create `ChocolateyManager` struct implementing `PackageManager` trait
+  - [ ] Handle Chocolatey-specific command construction (`choco install`, `choco upgrade`)
+  - [ ] Implement elevated permission detection and handling
+  - [ ] Add Chocolatey-specific error parsing and reporting
+  - [ ] Verification: Unit tests with mocked commands. Integration tests with actual Chocolatey.
 
-  - [ ] In `internal/pm/winget/winget.go` (create file), add `InstallPackage`.
-  - [ ] Construct/execute `winget install <pkg> --version <v> --accept-...`. "Missing PM" detection.
-  - [ ] Verification: Unit tests. Integrate into `apply`. Consecutive failure logic for Winget installs.
-- [ ] **Task 2.3:** Implement `--dry-run` flag and logic for `apply` (Install/Update part)
+- [ ] **Task 2.2:** Implement async **Winget** package manager
 
-  - [ ] Add `--dry-run` flag to `apply` command in `urfave/cli`.
-  - [ ] Modify `apply` execution flow: if `--dry-run`, log intended install/update actions instead of executing.
-  - [ ] Ensure PM interaction modules can signal intended actions without executing.
-  - [ ] Verification: `yuki apply --dry-run <manifest>` shows packages that _would be_ installed/version-changed, without actually installing them.
-- [ ] **Task 2.4:** Implement `list` command structure and PM interaction methods
+  - [ ] Create `WingetManager` struct implementing `PackageManager` trait  
+  - [ ] Handle Winget source agreements and interactive prompts
+  - [ ] Implement version specification and source handling
+  - [ ] Add Winget-specific output parsing for different formats
+  - [ ] Verification: Unit tests and integration tests. Handle Winget's evolving CLI.
 
-  - [ ] Define `list` command. Add `ListInstalledPackages` method to PM modules.
-  - [ ] Verification: `yuki list` runs.
-- [ ] **Task 2.5:** Implement **Scoop** `ListInstalledPackages` method and parsing
+- [ ] **Task 2.3:** Enhance `--dry-run` mode with detailed planning
 
-  - [ ] In `scoop.go`, implement `ListInstalledPackages` (runs `scoop list`), parse output.
-  - [ ] Verification: Unit tests. `yuki list` shows Scoop packages.
-- [ ] **Task 2.6:** Implement **Chocolatey** `ListInstalledPackages` method and parsing
+  - [ ] Implement dry-run mode as first-class feature in all PM implementations
+  - [ ] Add dependency analysis and conflict detection in dry-run
+  - [ ] Show detailed installation plan with version changes and dependencies
+  - [ ] Include estimated operation times and resource requirements
+  - [ ] Verification: `yuki apply --dry-run` provides comprehensive planning output.
 
-  - [ ] In `chocolatey.go`, implement `ListInstalledPackages` (runs `choco list --local-only`), parse.
-  - [ ] Verification: Unit tests. `yuki list` shows Choco packages.
-- [ ] **Task 2.7:** Implement **Winget** `ListInstalledPackages` method and parsing
+- [ ] **Task 2.4:** Implement async `list` command with parallel PM queries
 
-  - [ ] In `winget.go`, implement `ListInstalledPackages` (runs `winget list --accept-source-agreements`), parse.
-  - [ ] Verification: Unit tests. `yuki list` shows Winget packages.
-- [ ] **Task 2.8:** Finalize `list` command output formatting
+  - [ ] Design `list` command structure with filtering and formatting options
+  - [ ] Implement concurrent querying of all package managers
+  - [ ] Add package deduplication and conflict detection across PMs
+  - [ ] Verification: `yuki list` runs efficiently and shows consolidated results.
 
-  - [ ] Consolidate lists, section by PM, format neatly.
+- [ ] **Task 2.5:** Implement parallel **Scoop** package listing with caching
 
-  - [ ] Verification: `yuki list` output is clean, accurate.
+  - [ ] Add async `list_installed` method to `ScoopManager`
+  - [ ] Implement output parsing for different Scoop list formats
+  - [ ] Add local caching for performance on repeated calls
+  - [ ] Verification: Unit tests for parsing. Performance tests for large package lists.
 
-## Milestone 3: Implement `update --all` Command, Manifest `prune` Field Parsing, and Refinements
+- [ ] **Task 2.6:** Implement parallel **Chocolatey** package listing
 
-**Goal:** Implement `update --all`. Enhance manifest parsing to include the `prune` field per PM group. Add general polishes.
+  - [ ] Add async `list_installed` method to `ChocolateyManager`
+  - [ ] Handle Chocolatey's verbose output and extract relevant information
+  - [ ] Support different output formats (local vs. remote)
+  - [ ] Verification: Unit tests with sample Chocolatey output formats.
 
-- [ ] **Task 3.1:** Enhance YAML manifest parsing for `prune` field
+- [ ] **Task 2.7:** Implement parallel **Winget** package listing
 
-  - [ ] Update Go structs for manifest to include `Prune bool` field within each PM group.
-  - [ ] Ensure `prune` defaults to `false` if omitted.
-  - [ ] Verification: Unit tests for parsing manifests with and without `prune` flags. Parsed data is correct.
-- [ ] **Task 3.2:** Implement `update -a / --all` command structure
+  - [ ] Add async `list_installed` method to `WingetManager`
+  - [ ] Handle Winget's JSON and table output formats
+  - [ ] Support source filtering and package metadata extraction
+  - [ ] Verification: Unit tests for different Winget output scenarios.
 
-  - [ ] Define `update` command. Add `UpdateAllPackages` method to PM modules.
-  - [ ] Verification: `yuki update -a` runs.
-- [ ] **Task 3.3:** Implement **Scoop** `UpdateAllPackages` method
+- [ ] **Task 2.8:** Finalize consolidated list output with rich formatting
 
-  - [ ] In `scoop.go`, implement (runs `scoop update *`). Capture/display output.
-  - [ ] Verification: `update -a` triggers `scoop update *`.
-- [ ] **Task 3.4:** Implement **Chocolatey** `UpdateAllPackages` method
+  - [ ] Design user-friendly output format with tables and sections
+  - [ ] Add filtering options (by PM, by package name, by version)
+  - [ ] Implement export options (JSON, YAML for manifest generation)
+  - [ ] Add package status indicators (installed, updatable, conflicts)
+  - [ ] Verification: `yuki list` provides actionable and well-formatted information.
 
-  - [ ] In `chocolatey.go`, implement (runs `choco upgrade all -y`). Capture/display.
-  - [ ] Verification: `update -a` triggers `choco upgrade all`.
-- [ ] **Task 3.5:** Implement **Winget** `UpdateAllPackages` method
+## Milestone 3: Implement `update --all`, Package Pruning, and Configuration Management Foundation
 
-  - [ ] In `winget.go`, implement (runs `winget upgrade --all --accept-...`). Capture/display.
-  - [ ] Verification: `update -a`
+**Goal:** Implement parallel `update --all` command. Add package pruning functionality with safety checks. Begin foundation for configuration file management.
+
+- [ ] **Task 3.1:** Enhance manifest parsing for advanced features
+
+  - [ ] Add `prune` field support with strong typing in manifest structs
+  - [ ] Implement validation rules for pruning (safety checks, warnings)
+  - [ ] Add manifest schema versioning for backward compatibility
+  - [ ] Implement manifest validation with detailed error reporting
+  - [ ] Verification: Unit tests for all manifest features and edge cases.
+
+- [ ] **Task 3.2:** Implement parallel `update --all` command with progress tracking
+
+  - [ ] Design `update` command with concurrent PM operations
+  - [ ] Add progress bars and real-time status updates
+  - [ ] Implement selective update options (by PM, by package pattern)
+  - [ ] Add rollback capabilities for failed updates
+  - [ ] Verification: `yuki update --all` updates all PMs efficiently with clear progress.
+
+- [ ] **Task 3.3:** Implement **Scoop** update operations with dependency handling
+
+  - [ ] Add async `update_all` method with progress reporting
+  - [ ] Handle Scoop bucket updates and package updates separately
+  - [ ] Implement dependency-aware update ordering
+  - [ ] Add update conflict detection and resolution
+  - [ ] Verification: Scoop updates handle complex scenarios correctly.
+
+- [ ] **Task 3.4:** Implement **Chocolatey** update operations with elevation
+
+  - [ ] Add async `update_all` method with admin privilege handling
+  - [ ] Implement parallel package updates with dependency resolution
+  - [ ] Handle Chocolatey-specific update scenarios (pinned packages, etc.)
+  - [ ] Add update verification and rollback on failure
+  - [ ] Verification: Chocolatey updates work reliably with proper permissions.
+
+- [ ] **Task 3.5:** Implement **Winget** update operations with source management
+
+  - [ ] Add async `update_all` method with source agreement handling
+  - [ ] Implement update filtering and package selection
+  - [ ] Handle Winget's evolving update mechanisms
+  - [ ] Add support for different Winget sources and repositories
+  - [ ] Verification: Winget updates work across different package sources.
+
+- [ ] **Task 3.6:** Implement package pruning with safety mechanisms
+
+  - [ ] Add pruning logic with dry-run support and confirmation prompts
+  - [ ] Implement dependency analysis to prevent breaking system packages
+  - [ ] Add pruning exclusion lists and safety rules
+  - [ ] Create detailed pruning reports showing what will be removed
+  - [ ] Verification: Pruning works safely and provides clear feedback.
+
+- [ ] **Task 3.7:** Begin configuration management foundation (yuki-config crate)
+
+  - [ ] Create `yuki-config` crate with basic file management traits
+  - [ ] Implement file copying, templating, and backup functionality
+  - [ ] Add configuration validation and schema support
+  - [ ] Design plugin architecture for different config types
+  - [ ] Verification: Basic config file deployment works in test scenarios.
