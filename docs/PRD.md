@@ -48,7 +48,7 @@
 
 ## 3. Technical Specifications
 
-- **Primary Language:** Rust (edition 2021)
+- **Primary Language:** Rust (edition 2024)
 - **Key Dependencies:** `clap` (CLI framework), `serde` + `serde_yaml` (YAML parsing), `tokio` (async runtime), `anyhow` + `thiserror` (error handling), `tracing` (structured logging), `tempfile` (temporary file management)
 - **Key APIs/Integrations:** 
   - Process execution with `choco.exe`, `scoop.exe`, `winget.exe`
@@ -209,7 +209,7 @@ configs:
 
 ## 7. Project-Specific Coding Rules
 
-- **Rust Edition:** 2021 (or latest stable)
+- **Rust Edition:** 2024 (or latest stable)
 - **Formatting:** `rustfmt` with default configuration
 - **Linting:** `clippy` with pedantic lints enabled
 - **Key Principles:**

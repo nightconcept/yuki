@@ -1,0 +1,21 @@
+[package]
+name = "yuki-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "yuki"
+path = "src/main.rs"
+
+[dependencies]
+yuki-core = { path = "../yuki-core" }
+yuki-pm = { path = "../yuki-pm" }
+anyhow = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
